@@ -7,11 +7,11 @@ const helper = require('./utils/utils.js');
 const { BN, expectEvent, expectRevert, time } = require('@openzeppelin/test-helpers');
 
 // Load compiled artifacts
-const Tap = artifacts.require('TapToken');
+const Bacon = artifacts.require('BaconToken');
 const VestingVault = artifacts.require('VestingVault');
 
 // Start test block
-contract('VestingVault', function ([ owner, other ]) {
+contract('VestingVault', function ([owner, other]) {
 
   const initialSupply = new BN('1000');
   const cap = new BN('1000');
@@ -21,20 +21,20 @@ contract('VestingVault', function ([ owner, other ]) {
     snapShot = await helper.takeSnapshot();
     snapshotId = snapShot['result'];
 
-    this.tap = await Tap.new('Tapmydata', 'TAP', cap);
-    await this.tap.mint(owner, initialSupply);
+    this.bacon = await Bacon.new('Bacon', 'BACON', cap);
+    await this.bacon.mint(owner, initialSupply);
 
-    this.vault = await VestingVault.new(this.tap.address)
-    await this.tap.approve(this.vault.address, 1000);
+    this.vault = await VestingVault.new(this.bacon.address)
+    await this.bacon.approve(this.vault.address, 1000);
   });
 
-  afterEach(async() => {
+  afterEach(async () => {
     await helper.revertToSnapShot(snapshotId);
   });
 
   it('should only allow owner to grant', async function () {
     await expectRevert(
-      this.vault.addTokenGrant(other, 10, 10, 10, {from: other}),
+      this.vault.addTokenGrant(other, 10, 10, 10, { from: other }),
       "Ownable: caller is not the owner"
     );
   });
@@ -42,7 +42,7 @@ contract('VestingVault', function ([ owner, other ]) {
   it('should only allow owner to revoke', async function () {
     await this.vault.addTokenGrant(other, 10, 10, 10);
     await expectRevert(
-      this.vault.revokeTokenGrant(other, {from: other}),
+      this.vault.revokeTokenGrant(other, { from: other }),
       "Ownable: caller is not the owner"
     );
   });
@@ -62,7 +62,7 @@ contract('VestingVault', function ([ owner, other ]) {
     await expectEvent(
       web3Receipt,
       "GrantRevoked",
-      { 
+      {
         recipient: other,
         amountVested: "0",
         amountNotVested: "10"
@@ -72,11 +72,11 @@ contract('VestingVault', function ([ owner, other ]) {
 
   it('should emit an event on claim', async function () {
     await this.vault.addTokenGrant(other, 10, 10, 0);
-    const web3Receipt = await this.vault.claimVestedTokens({from: other});
+    const web3Receipt = await this.vault.claimVestedTokens({ from: other });
     await expectEvent(
       web3Receipt,
       "GrantTokensClaimed",
-      { 
+      {
         recipient: other,
         amountClaimed: "1"
       }
@@ -85,22 +85,22 @@ contract('VestingVault', function ([ owner, other ]) {
 
   it('should reject cliff greater than 10 years', async function () {
     await expectRevert(
-        this.vault.addTokenGrant(other, 10, 1000, 3651),
-        "Cliff greater than 10 years"
+      this.vault.addTokenGrant(other, 10, 1000, 3651),
+      "Cliff greater than 10 years"
     );
   });
 
   it('should reject duration greater than 25 years', async function () {
     await expectRevert(
-        this.vault.addTokenGrant(other, 10, 9126, 365),
-        "Duration greater than 25 years"
+      this.vault.addTokenGrant(other, 10, 9126, 365),
+      "Duration greater than 25 years"
     );
   });
 
   it('should have an amount vesting per day greater than zero', async function () {
     await expectRevert(
-        this.vault.addTokenGrant(other, 10, 1000, 1000),
-        "amountVestedPerDay > 0"
+      this.vault.addTokenGrant(other, 10, 1000, 1000),
+      "amountVestedPerDay > 0"
     );
   });
 
@@ -111,156 +111,156 @@ contract('VestingVault', function ([ owner, other ]) {
     );
   });
 
-  it('can get grant start time', async function() {
+  it('can get grant start time', async function () {
     await this.vault.addTokenGrant(other, 1000, 10, 0);
     expect((await this.vault.getGrantStartTime(other)).toString()).to.equal((await time.latest()).toString());
   });
 
-  it('can get grant amount', async function() {
+  it('can get grant amount', async function () {
     await this.vault.addTokenGrant(other, 1000, 10, 1);
     expect((await this.vault.getGrantAmount(other)).toString()).to.equal("1000");
   });
 
-  it('can not add a grant if one already exists', async function() {
+  it('can not add a grant if one already exists', async function () {
     await this.vault.addTokenGrant(other, 300, 10, 1);
     await expectRevert(
-        this.vault.addTokenGrant(other, 200, 10, 1),
-        "Grant already exists, must revoke first"
+      this.vault.addTokenGrant(other, 200, 10, 1),
+      "Grant already exists, must revoke first"
     );
     expect((await this.vault.getGrantAmount(other)).toString()).to.equal("300");
   });
 
-  it('can not claim unvested tokens', async function() {
+  it('can not claim unvested tokens', async function () {
     await this.vault.addTokenGrant(other, 1000, 10, 1);
     await expectRevert(
-        this.vault.claimVestedTokens({from: other}),
-        "Vested is 0"
+      this.vault.claimVestedTokens({ from: other }),
+      "Vested is 0"
     );
   });
 
-  it('can claim vested tokens', async function() {
+  it('can claim vested tokens', async function () {
     await this.vault.addTokenGrant(other, 1000, 10, 0);
-    expect((await this.tap.balanceOf(other)).toString()).to.equal("0");
+    expect((await this.bacon.balanceOf(other)).toString()).to.equal("0");
     await time.increase(time.duration.days(2));
-    await this.vault.claimVestedTokens({from: other})
-    expect((await this.tap.balanceOf(other)).toString()).to.equal("300");
+    await this.vault.claimVestedTokens({ from: other })
+    expect((await this.bacon.balanceOf(other)).toString()).to.equal("300");
   });
 
-  it('grants all tokens if over testing duration', async function() {
+  it('grants all tokens if over testing duration', async function () {
     await this.vault.addTokenGrant(other, 1000, 10, 0);
-    expect((await this.tap.balanceOf(other)).toString()).to.equal("0");
+    expect((await this.bacon.balanceOf(other)).toString()).to.equal("0");
     await time.increase(time.duration.days(20));
-    await this.vault.claimVestedTokens({from: other})
-    expect((await this.tap.balanceOf(other)).toString()).to.equal("1000");
+    await this.vault.claimVestedTokens({ from: other })
+    expect((await this.bacon.balanceOf(other)).toString()).to.equal("1000");
   });
 
-  it('vests immediately if no cliff', async function() {
+  it('vests immediately if no cliff', async function () {
     await this.vault.addTokenGrant(other, 1000, 1, 0);
-    await this.vault.claimVestedTokens({from: other})
-    expect((await this.tap.balanceOf(other)).toString()).to.equal("1000");
+    await this.vault.claimVestedTokens({ from: other })
+    expect((await this.bacon.balanceOf(other)).toString()).to.equal("1000");
 
     await time.increase(time.duration.days(1));
     await expectRevert(
-      this.vault.claimVestedTokens({from: other}),
+      this.vault.claimVestedTokens({ from: other }),
       "Grant fully claimed"
     );
   });
 
-  it('does not release tokens before cliff is up', async function() {
+  it('does not release tokens before cliff is up', async function () {
     await this.vault.addTokenGrant(other, 1000, 5, 3);
 
     await time.increase(time.duration.days(1));
     await expectRevert(
-      this.vault.claimVestedTokens({from: other}),
+      this.vault.claimVestedTokens({ from: other }),
       "Vested is 0"
     );
 
     await time.increase(time.duration.days(1));
     await expectRevert(
-      this.vault.claimVestedTokens({from: other}),
+      this.vault.claimVestedTokens({ from: other }),
       "Vested is 0"
     );
 
     await time.increase(time.duration.days(1));
-    await this.vault.claimVestedTokens({from: other})
-    expect((await this.tap.balanceOf(other)).toString()).to.equal("200");
+    await this.vault.claimVestedTokens({ from: other })
+    expect((await this.bacon.balanceOf(other)).toString()).to.equal("200");
 
     await time.increase(time.duration.days(1));
-    await this.vault.claimVestedTokens({from: other})
-    expect((await this.tap.balanceOf(other)).toString()).to.equal("400");
+    await this.vault.claimVestedTokens({ from: other })
+    expect((await this.bacon.balanceOf(other)).toString()).to.equal("400");
 
     await time.increase(time.duration.days(1));
-    await this.vault.claimVestedTokens({from: other})
-    expect((await this.tap.balanceOf(other)).toString()).to.equal("600");
+    await this.vault.claimVestedTokens({ from: other })
+    expect((await this.bacon.balanceOf(other)).toString()).to.equal("600");
 
     await time.increase(time.duration.days(1));
-    await this.vault.claimVestedTokens({from: other})
-    expect((await this.tap.balanceOf(other)).toString()).to.equal("800");
+    await this.vault.claimVestedTokens({ from: other })
+    expect((await this.bacon.balanceOf(other)).toString()).to.equal("800");
 
     await time.increase(time.duration.days(1));
-    await this.vault.claimVestedTokens({from: other})
-    expect((await this.tap.balanceOf(other)).toString()).to.equal("1000");
+    await this.vault.claimVestedTokens({ from: other })
+    expect((await this.bacon.balanceOf(other)).toString()).to.equal("1000");
 
     await time.increase(time.duration.days(1));
     await expectRevert(
-      this.vault.claimVestedTokens({from: other}),
+      this.vault.claimVestedTokens({ from: other }),
       "Grant fully claimed"
     );
   });
 
-  it('releases balance at end if uneven vest', async function() {
+  it('releases balance at end if uneven vest', async function () {
     await this.vault.addTokenGrant(other, 1000, 3, 0);
 
-    await this.vault.claimVestedTokens({from: other})
-    expect((await this.tap.balanceOf(other)).toString()).to.equal("333");
+    await this.vault.claimVestedTokens({ from: other })
+    expect((await this.bacon.balanceOf(other)).toString()).to.equal("333");
 
     await time.increase(time.duration.days(1));
-    await this.vault.claimVestedTokens({from: other})
-    expect((await this.tap.balanceOf(other)).toString()).to.equal("666");
+    await this.vault.claimVestedTokens({ from: other })
+    expect((await this.bacon.balanceOf(other)).toString()).to.equal("666");
 
     await time.increase(time.duration.days(1));
-    await this.vault.claimVestedTokens({from: other})
-    expect((await this.tap.balanceOf(other)).toString()).to.equal("1000");
+    await this.vault.claimVestedTokens({ from: other })
+    expect((await this.bacon.balanceOf(other)).toString()).to.equal("1000");
 
     await time.increase(time.duration.days(1));
     await expectRevert(
-      this.vault.claimVestedTokens({from: other}),
+      this.vault.claimVestedTokens({ from: other }),
       "Grant fully claimed"
     );
   });
 
-  it('releases balance at end if uneven vest with cliff', async function() {
+  it('releases balance at end if uneven vest with cliff', async function () {
     await this.vault.addTokenGrant(other, 1000, 3, 7);
 
     await time.increase(time.duration.days(7));
 
-    await this.vault.claimVestedTokens({from: other})
-    expect((await this.tap.balanceOf(other)).toString()).to.equal("333");
+    await this.vault.claimVestedTokens({ from: other })
+    expect((await this.bacon.balanceOf(other)).toString()).to.equal("333");
 
     await time.increase(time.duration.days(1));
-    await this.vault.claimVestedTokens({from: other})
-    expect((await this.tap.balanceOf(other)).toString()).to.equal("666");
+    await this.vault.claimVestedTokens({ from: other })
+    expect((await this.bacon.balanceOf(other)).toString()).to.equal("666");
 
     await time.increase(time.duration.days(1));
-    await this.vault.claimVestedTokens({from: other})
-    expect((await this.tap.balanceOf(other)).toString()).to.equal("1000");
+    await this.vault.claimVestedTokens({ from: other })
+    expect((await this.bacon.balanceOf(other)).toString()).to.equal("1000");
 
     await time.increase(time.duration.days(1));
     await expectRevert(
-      this.vault.claimVestedTokens({from: other}),
+      this.vault.claimVestedTokens({ from: other }),
       "Grant fully claimed"
     );
   });
 
-  it('owner can revoke token grant', async function() {
+  it('owner can revoke token grant', async function () {
     await this.vault.addTokenGrant(other, 1000, 3, 7);
-    expect((await this.tap.balanceOf(this.vault.address)).toString()).to.equal("1000");
+    expect((await this.bacon.balanceOf(this.vault.address)).toString()).to.equal("1000");
 
     await time.increase(time.duration.days(8));
     await this.vault.revokeTokenGrant(other);
 
-    expect((await this.tap.balanceOf(owner)).toString()).to.equal("334");
-    expect((await this.tap.balanceOf(other)).toString()).to.equal("666");
-    expect((await this.tap.balanceOf(this.vault.address)).toString()).to.equal("0");
+    expect((await this.bacon.balanceOf(owner)).toString()).to.equal("334");
+    expect((await this.bacon.balanceOf(other)).toString()).to.equal("666");
+    expect((await this.bacon.balanceOf(this.vault.address)).toString()).to.equal("0");
   });
 });

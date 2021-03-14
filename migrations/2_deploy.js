@@ -2,13 +2,13 @@
 require('dotenv').config()
 
 var Web3 = require('web3');
-const TapToken = artifacts.require("TapToken");
-const one_hundred_million = Web3.utils.toWei('100000000', 'ether');
+const BaconToken = artifacts.require("BaconToken");
+const ten_million = Web3.utils.toWei('100000000', 'ether');
 
 module.exports = async function (deployer, network, accounts) {
-  await deployer.deploy(TapToken, 'Tapmydata', 'TAP', one_hundred_million);
-  tapInstance = await TapToken.deployed();
-  if(process.env.MINT_TO) {
-    await tapInstance.mint(process.env.MINT_TO, one_hundred_million);
+  await deployer.deploy(BaconToken, 'BACON', 'BACON', ten_million);
+  baconTokenInstance = await BaconToken.deployed();
+  if (process.env.MINT_TO) {
+    await baconTokenInstance.mint(process.env.MINT_TO, ten_million);
   }
 };
