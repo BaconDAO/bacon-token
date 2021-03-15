@@ -1,6 +1,10 @@
 /*
 Original work taken from https://gist.github.com/rstormsf/7cfb0c6b7a835c0c67b4a394b4fd9383
-Has been amended to use openzepplin Ownable and now only supports one grant per address for simplicity.
+Simplified VestingVault for one grant per address implementation from https://github.com/tapmydata/tap-protocol/blob/main/contracts/VestingVault.sol
+
+This version improves on the implementation in the following ways:
+- Vesting has been made to support per-month instead of per-day
+- All time calculations now use SafeMath to solve issues comparing execution time with cliff time. SafeMath and primitive operators cannot be compared properly.
 */
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.7.0;
