@@ -21,7 +21,7 @@ contract BaconToken is ERC20Burnable {
      *
      * See {ERC20-constructor}.
      */
-    constructor() ERC20("BACON", "BACON") {
-       _mint(msg.sender, 10000000 * (10 ** uint256(decimals())));
+    constructor(string memory name, string memory symbol, uint256 initialSupply) ERC20(name, symbol) {
+       _mint(msg.sender, initialSupply);
     }
 }

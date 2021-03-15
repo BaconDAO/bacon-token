@@ -13,16 +13,14 @@ const VestingVault = artifacts.require('VestingVault');
 // Start test block
 contract('VestingVault', function ([owner, other]) {
 
-  const initialSupply = new BN('1000');
-  const cap = new BN('1000');
+  const totalSupply = new BN('1000');
   const unixTime = Math.floor(Date.now() / 1000);
 
   beforeEach(async function () {
     snapShot = await helper.takeSnapshot();
     snapshotId = snapShot['result'];
 
-    this.bacon = await Bacon.new('Bacon', 'BACON', cap);
-    await this.bacon.mint(owner, initialSupply);
+    this.bacon = await Bacon.new('BACON', 'BACON', totalSupply);
 
     this.vault = await VestingVault.new(this.bacon.address)
     await this.bacon.approve(this.vault.address, 1000);
@@ -85,22 +83,22 @@ contract('VestingVault', function ([owner, other]) {
 
   it('should reject cliff greater than 10 years', async function () {
     await expectRevert(
-      this.vault.addTokenGrant(other, 10, 1000, 3651),
+      this.vault.addTokenGrant(other, 10, 12, 121),
       "Cliff greater than 10 years"
     );
   });
 
   it('should reject duration greater than 25 years', async function () {
     await expectRevert(
-      this.vault.addTokenGrant(other, 10, 9126, 365),
+      this.vault.addTokenGrant(other, 10, 301, 12),
       "Duration greater than 25 years"
     );
   });
 
-  it('should have an amount vesting per day greater than zero', async function () {
+  it('should have an amount vesting per month greater than zero', async function () {
     await expectRevert(
-      this.vault.addTokenGrant(other, 10, 1000, 1000),
-      "amountVestedPerDay > 0"
+      this.vault.addTokenGrant(other, 10, 12, 12),
+      "amountVestedPerMonth > 0"
     );
   });
 
@@ -141,7 +139,7 @@ contract('VestingVault', function ([owner, other]) {
   it('can claim vested tokens', async function () {
     await this.vault.addTokenGrant(other, 1000, 10, 0);
     expect((await this.bacon.balanceOf(other)).toString()).to.equal("0");
-    await time.increase(time.duration.days(2));
+    await time.increase(time.duration.days(60));
     await this.vault.claimVestedTokens({ from: other })
     expect((await this.bacon.balanceOf(other)).toString()).to.equal("300");
   });
@@ -149,7 +147,7 @@ contract('VestingVault', function ([owner, other]) {
   it('grants all tokens if over testing duration', async function () {
     await this.vault.addTokenGrant(other, 1000, 10, 0);
     expect((await this.bacon.balanceOf(other)).toString()).to.equal("0");
-    await time.increase(time.duration.days(20));
+    await time.increase(time.duration.days(600));
     await this.vault.claimVestedTokens({ from: other })
     expect((await this.bacon.balanceOf(other)).toString()).to.equal("1000");
   });
@@ -159,7 +157,7 @@ contract('VestingVault', function ([owner, other]) {
     await this.vault.claimVestedTokens({ from: other })
     expect((await this.bacon.balanceOf(other)).toString()).to.equal("1000");
 
-    await time.increase(time.duration.days(1));
+    await time.increase(time.duration.days(30));
     await expectRevert(
       this.vault.claimVestedTokens({ from: other }),
       "Grant fully claimed"
@@ -169,39 +167,39 @@ contract('VestingVault', function ([owner, other]) {
   it('does not release tokens before cliff is up', async function () {
     await this.vault.addTokenGrant(other, 1000, 5, 3);
 
-    await time.increase(time.duration.days(1));
+    await time.increase(time.duration.days(30));
     await expectRevert(
       this.vault.claimVestedTokens({ from: other }),
       "Vested is 0"
     );
 
-    await time.increase(time.duration.days(1));
+    await time.increase(time.duration.days(30));
     await expectRevert(
       this.vault.claimVestedTokens({ from: other }),
       "Vested is 0"
     );
 
-    await time.increase(time.duration.days(1));
+    await time.increase(time.duration.days(30));
     await this.vault.claimVestedTokens({ from: other })
     expect((await this.bacon.balanceOf(other)).toString()).to.equal("200");
 
-    await time.increase(time.duration.days(1));
+    await time.increase(time.duration.days(30));
     await this.vault.claimVestedTokens({ from: other })
     expect((await this.bacon.balanceOf(other)).toString()).to.equal("400");
 
-    await time.increase(time.duration.days(1));
+    await time.increase(time.duration.days(30));
     await this.vault.claimVestedTokens({ from: other })
     expect((await this.bacon.balanceOf(other)).toString()).to.equal("600");
 
-    await time.increase(time.duration.days(1));
+    await time.increase(time.duration.days(30));
     await this.vault.claimVestedTokens({ from: other })
     expect((await this.bacon.balanceOf(other)).toString()).to.equal("800");
 
-    await time.increase(time.duration.days(1));
+    await time.increase(time.duration.days(30));
     await this.vault.claimVestedTokens({ from: other })
     expect((await this.bacon.balanceOf(other)).toString()).to.equal("1000");
 
-    await time.increase(time.duration.days(1));
+    await time.increase(time.duration.days(30));
     await expectRevert(
       this.vault.claimVestedTokens({ from: other }),
       "Grant fully claimed"
@@ -214,15 +212,15 @@ contract('VestingVault', function ([owner, other]) {
     await this.vault.claimVestedTokens({ from: other })
     expect((await this.bacon.balanceOf(other)).toString()).to.equal("333");
 
-    await time.increase(time.duration.days(1));
+    await time.increase(time.duration.days(30));
     await this.vault.claimVestedTokens({ from: other })
     expect((await this.bacon.balanceOf(other)).toString()).to.equal("666");
 
-    await time.increase(time.duration.days(1));
+    await time.increase(time.duration.days(30));
     await this.vault.claimVestedTokens({ from: other })
     expect((await this.bacon.balanceOf(other)).toString()).to.equal("1000");
 
-    await time.increase(time.duration.days(1));
+    await time.increase(time.duration.days(30));
     await expectRevert(
       this.vault.claimVestedTokens({ from: other }),
       "Grant fully claimed"
@@ -232,20 +230,20 @@ contract('VestingVault', function ([owner, other]) {
   it('releases balance at end if uneven vest with cliff', async function () {
     await this.vault.addTokenGrant(other, 1000, 3, 7);
 
-    await time.increase(time.duration.days(7));
+    await time.increase(time.duration.days(210));
 
     await this.vault.claimVestedTokens({ from: other })
     expect((await this.bacon.balanceOf(other)).toString()).to.equal("333");
 
-    await time.increase(time.duration.days(1));
+    await time.increase(time.duration.days(30));
     await this.vault.claimVestedTokens({ from: other })
     expect((await this.bacon.balanceOf(other)).toString()).to.equal("666");
 
-    await time.increase(time.duration.days(1));
+    await time.increase(time.duration.days(30));
     await this.vault.claimVestedTokens({ from: other })
     expect((await this.bacon.balanceOf(other)).toString()).to.equal("1000");
 
-    await time.increase(time.duration.days(1));
+    await time.increase(time.duration.days(30));
     await expectRevert(
       this.vault.claimVestedTokens({ from: other }),
       "Grant fully claimed"
@@ -256,7 +254,7 @@ contract('VestingVault', function ([owner, other]) {
     await this.vault.addTokenGrant(other, 1000, 3, 7);
     expect((await this.bacon.balanceOf(this.vault.address)).toString()).to.equal("1000");
 
-    await time.increase(time.duration.days(8));
+    await time.increase(time.duration.days(240));
     await this.vault.revokeTokenGrant(other);
 
     expect((await this.bacon.balanceOf(owner)).toString()).to.equal("334");

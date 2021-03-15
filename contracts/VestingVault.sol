@@ -17,7 +17,7 @@ contract VestingVault is Ownable {
         uint256 startTime;
         uint256 amount;
         uint16 vestingDuration;
-        uint16 daysClaimed;
+        uint16 monthsClaimed;
         uint256 totalClaimed;
         address recipient;
     }
@@ -40,27 +40,27 @@ contract VestingVault is Ownable {
     function addTokenGrant(
         address _recipient,
         uint256 _amount,
-        uint16 _vestingDurationInDays,
-        uint16 _vestingCliffInDays    
+        uint16 _vestingDurationInMonths,
+        uint16 _vestingCliffInMonths    
     ) 
         external
         onlyOwner
     {
         require(tokenGrants[_recipient].amount == 0, "Grant already exists, must revoke first.");
-        require(_vestingCliffInDays <= 10*365, "Cliff greater than 10 years");
-        require(_vestingDurationInDays <= 25*365, "Duration greater than 25 years");
-        
-        uint256 amountVestedPerDay = _amount.div(_vestingDurationInDays);
-        require(amountVestedPerDay > 0, "amountVestedPerDay > 0");
+        require(_vestingDurationInMonths <= 25*12, "Duration greater than 25 years");
+        require(_vestingCliffInMonths <= 10*12, "Cliff greater than 10 years");
+
+        uint256 amountVestedPerMonth = _amount.div(_vestingDurationInMonths);
+        require(amountVestedPerMonth > 0, "amountVestedPerMonth > 0");
 
         // Transfer the grant tokens under the control of the vesting contract
         require(token.transferFrom(owner(), address(this), _amount));
 
         Grant memory grant = Grant({
-            startTime: currentTime() + _vestingCliffInDays * 1 days,
+            startTime: currentTime().add(_vestingCliffInMonths.mul(30 days)),
             amount: _amount,
-            vestingDuration: _vestingDurationInDays,
-            daysClaimed: 0,
+            vestingDuration: _vestingDurationInMonths,
+            monthsClaimed: 0,
             totalClaimed: 0,
             recipient: _recipient
         });
@@ -70,13 +70,13 @@ contract VestingVault is Ownable {
 
     /// @notice Allows a grant recipient to claim their vested tokens. Errors if no tokens have vested
     function claimVestedTokens() external {
-        uint16 daysVested;
+        uint16 monthsVested;
         uint256 amountVested;
-        (daysVested, amountVested) = calculateGrantClaim(msg.sender);
+        (monthsVested, amountVested) = calculateGrantClaim(msg.sender);
         require(amountVested > 0, "Vested is 0");
 
         Grant storage tokenGrant = tokenGrants[msg.sender];
-        tokenGrant.daysClaimed = uint16(tokenGrant.daysClaimed.add(daysVested));
+        tokenGrant.monthsClaimed = uint16(tokenGrant.monthsClaimed.add(monthsVested));
         tokenGrant.totalClaimed = uint256(tokenGrant.totalClaimed.add(amountVested));
         
         require(token.transfer(tokenGrant.recipient, amountVested), "no tokens");
@@ -92,9 +92,9 @@ contract VestingVault is Ownable {
         onlyOwner
     {
         Grant storage tokenGrant = tokenGrants[_recipient];
-        uint16 daysVested;
+        uint16 monthsVested;
         uint256 amountVested;
-        (daysVested, amountVested) = calculateGrantClaim(_recipient);
+        (monthsVested, amountVested) = calculateGrantClaim(_recipient);
 
         uint256 amountNotVested = (tokenGrant.amount.sub(tokenGrant.totalClaimed)).sub(amountVested);
 
@@ -104,7 +104,7 @@ contract VestingVault is Ownable {
         tokenGrant.startTime = 0;
         tokenGrant.amount = 0;
         tokenGrant.vestingDuration = 0;
-        tokenGrant.daysClaimed = 0;
+        tokenGrant.monthsClaimed = 0;
         tokenGrant.totalClaimed = 0;
         tokenGrant.recipient = address(0);
 
@@ -135,17 +135,17 @@ contract VestingVault is Ownable {
         }
 
         // Check cliff was reached
-        uint elapsedDays = currentTime().sub(tokenGrant.startTime - 1 days).div(1 days);
-
+        uint elapsedMonths = currentTime().sub(tokenGrant.startTime.sub(30 days)).div(30 days);
+     
         // If over vesting duration, all tokens vested
-        if (elapsedDays >= tokenGrant.vestingDuration) {
+        if (elapsedMonths >= tokenGrant.vestingDuration) {
             uint256 remainingGrant = tokenGrant.amount.sub(tokenGrant.totalClaimed);
             return (tokenGrant.vestingDuration, remainingGrant);
         } else {
-            uint16 daysVested = uint16(elapsedDays.sub(tokenGrant.daysClaimed));
-            uint256 amountVestedPerDay = tokenGrant.amount.div(uint256(tokenGrant.vestingDuration));
-            uint256 amountVested = uint256(daysVested.mul(amountVestedPerDay));
-            return (daysVested, amountVested);
+            uint16 monthsVested = uint16(elapsedMonths.sub(tokenGrant.monthsClaimed));
+            uint256 amountVestedPerMonth = tokenGrant.amount.div(uint256(tokenGrant.vestingDuration));
+            uint256 amountVested = uint256(monthsVested.mul(amountVestedPerMonth));
+            return (monthsVested, amountVested);
         }
     }
 
