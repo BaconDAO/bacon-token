@@ -9,12 +9,14 @@ This version improves on the implementation in the following ways:
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.7.0;
 
-import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/SafeERC20.sol";
 import "@openzeppelin/contracts/math/SafeMath.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 
 contract VestingVault is Ownable {
     using SafeMath for uint256;
+    using SafeERC20 for IERC20;
 
     struct Grant {
         uint256 startTime;
@@ -29,13 +31,13 @@ contract VestingVault is Ownable {
     event GrantTokensClaimed(address indexed recipient, uint256 amountClaimed);
     event GrantRevoked(address recipient, uint256 amountVested, uint256 amountNotVested);
 
-    ERC20 public token;
+    IERC20 public token;
     
     mapping (address => Grant) private tokenGrants;
 
     uint256 public totalVestingCount;
 
-    constructor(ERC20 _token) public {
+    constructor(IERC20 _token) public {
         require(address(_token) != address(0));
         token = _token;
     }
@@ -57,7 +59,7 @@ contract VestingVault is Ownable {
         require(amountVestedPerMonth > 0, "amountVestedPerMonth > 0");
 
         // Transfer the grant tokens under the control of the vesting contract
-        require(token.transferFrom(owner(), address(this), _amount));
+        token.safeTransferFrom(owner(), address(this), _amount);
 
         Grant memory grant = Grant({
             startTime: currentTime().add(_lockDurationInMonths.mul(30 days)),
@@ -82,7 +84,7 @@ contract VestingVault is Ownable {
         tokenGrant.monthsClaimed = uint256(tokenGrant.monthsClaimed.add(monthsVested));
         tokenGrant.totalClaimed = uint256(tokenGrant.totalClaimed.add(amountVested));
         
-        require(token.transfer(tokenGrant.recipient, amountVested), "no tokens");
+        token.safeTransfer(tokenGrant.recipient, amountVested);
         emit GrantTokensClaimed(tokenGrant.recipient, amountVested);
     }
 
@@ -101,8 +103,8 @@ contract VestingVault is Ownable {
 
         uint256 amountNotVested = (tokenGrant.amount.sub(tokenGrant.totalClaimed)).sub(amountVested);
 
-        require(token.transfer(owner(), amountNotVested));
-        require(token.transfer(_recipient, amountVested));
+        token.safeTransfer(owner(), amountNotVested);
+        token.safeTransfer(_recipient, amountVested);
 
         tokenGrant.startTime = 0;
         tokenGrant.amount = 0;
