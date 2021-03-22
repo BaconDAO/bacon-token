@@ -4,7 +4,7 @@ Simplified VestingVault for one grant per address implementation from https://gi
 
 This version improves on the implementation in the following ways:
 - Vesting has been made to support per-month instead of per-day
-- All time calculations now use SafeMath to solve issues comparing execution time with cliff time. SafeMath and primitive operators cannot be compared properly.
+- All time calculations now use SafeMath to solve issues comparing execution time with lock time. SafeMath and primitive operators cannot be compared properly.
 */
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.7.0;
@@ -45,14 +45,14 @@ contract VestingVault is Ownable {
         address _recipient,
         uint256 _amount,
         uint16 _vestingDurationInMonths,
-        uint16 _vestingCliffInMonths    
+        uint16 _lockDurationInMonths    
     ) 
         external
         onlyOwner
     {
         require(tokenGrants[_recipient].amount == 0, "Grant already exists, must revoke first.");
         require(_vestingDurationInMonths <= 25*12, "Duration greater than 25 years");
-        require(_vestingCliffInMonths <= 10*12, "Cliff greater than 10 years");
+        require(_lockDurationInMonths <= 10*12, "Lock greater than 10 years");
 
         uint256 amountVestedPerMonth = _amount.div(_vestingDurationInMonths);
         require(amountVestedPerMonth > 0, "amountVestedPerMonth > 0");
@@ -61,7 +61,7 @@ contract VestingVault is Ownable {
         require(token.transferFrom(owner(), address(this), _amount));
 
         Grant memory grant = Grant({
-            startTime: currentTime().add(_vestingCliffInMonths.mul(30 days)),
+            startTime: currentTime().add(_lockDurationInMonths.mul(30 days)),
             amount: _amount,
             vestingDuration: _vestingDurationInMonths,
             monthsClaimed: 0,
@@ -127,18 +127,17 @@ contract VestingVault is Ownable {
 
     /// @notice Calculate the vested and unclaimed months and tokens available for `_grantId` to claim
     /// Due to rounding errors once grant duration is reached, returns the entire left grant amount
-    /// Returns (0, 0) if cliff has not been reached
+    /// Returns (0, 0) if lock duration has not been reached
     function calculateGrantClaim(address _recipient) private view returns (uint16, uint256) {
         Grant storage tokenGrant = tokenGrants[_recipient];
 
         require(tokenGrant.totalClaimed < tokenGrant.amount, "Grant fully claimed");
 
-        // For grants created with a future start date, that hasn't been reached, return 0, 0
+        // Check if lock duration was reached by comparing the current time with the startTime. If lock duration hasn't been reached, return 0, 0
         if (currentTime() < tokenGrant.startTime) {
             return (0, 0);
         }
 
-        // Check cliff was reached
         uint elapsedMonths = currentTime().sub(tokenGrant.startTime.sub(30 days)).div(30 days);
      
         // If over vesting duration, all tokens vested
