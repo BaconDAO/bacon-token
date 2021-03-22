@@ -81,10 +81,10 @@ contract('VestingVault', function ([owner, other]) {
     );
   });
 
-  it('should reject cliff greater than 10 years', async function () {
+  it('should reject lock duration greater than 10 years', async function () {
     await expectRevert(
       this.vault.addTokenGrant(other, 10, 12, 121),
-      "Cliff greater than 10 years"
+      "Lock greater than 10 years"
     );
   });
 
@@ -152,7 +152,7 @@ contract('VestingVault', function ([owner, other]) {
     expect((await this.bacon.balanceOf(other)).toString()).to.equal("1000");
   });
 
-  it('vests immediately if no cliff', async function () {
+  it('vests immediately if no lock', async function () {
     await this.vault.addTokenGrant(other, 1000, 1, 0);
     await this.vault.claimVestedTokens({ from: other })
     expect((await this.bacon.balanceOf(other)).toString()).to.equal("1000");
@@ -164,7 +164,7 @@ contract('VestingVault', function ([owner, other]) {
     );
   });
 
-  it('does not release tokens before cliff is up', async function () {
+  it('does not release tokens before lock duration is up', async function () {
     await this.vault.addTokenGrant(other, 1000, 5, 3);
 
     await time.increase(time.duration.days(30));
@@ -227,7 +227,7 @@ contract('VestingVault', function ([owner, other]) {
     );
   });
 
-  it('releases balance at end if uneven vest with cliff', async function () {
+  it('releases balance at end if uneven vest with lock', async function () {
     await this.vault.addTokenGrant(other, 1000, 3, 7);
 
     await time.increase(time.duration.days(210));
