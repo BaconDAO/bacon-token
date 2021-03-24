@@ -103,8 +103,14 @@ contract VestingVault is Ownable {
 
         uint256 amountNotVested = (tokenGrant.amount.sub(tokenGrant.totalClaimed)).sub(amountVested);
 
-        token.safeTransfer(owner(), amountNotVested);
-        token.safeTransfer(_recipient, amountVested);
+        // only transfer tokens if amounts are non-zero.
+        // Negative cases are covered by upperbound check in addTokenGrant and overflow protection using SafeMath
+        if (amountNotVested > 0) {
+          token.safeTransfer(owner(), amountNotVested);
+        }
+        if (amountVested > 0) {
+          token.safeTransfer(_recipient, amountVested);
+        }
 
         tokenGrant.startTime = 0;
         tokenGrant.amount = 0;
