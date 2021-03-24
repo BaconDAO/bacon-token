@@ -58,9 +58,6 @@ contract VestingVault is Ownable {
         uint256 amountVestedPerMonth = _amount.div(_vestingDurationInMonths);
         require(amountVestedPerMonth > 0, "amountVestedPerMonth > 0");
 
-        // Transfer the grant tokens under the control of the vesting contract
-        token.safeTransferFrom(owner(), address(this), _amount);
-
         Grant memory grant = Grant({
             startTime: currentTime().add(_lockDurationInMonths.mul(30 days)),
             amount: _amount,
@@ -71,6 +68,9 @@ contract VestingVault is Ownable {
         });
         tokenGrants[_recipient] = grant;
         emit GrantAdded(_recipient);
+
+        // Transfer the grant tokens under the control of the vesting contract
+        token.safeTransferFrom(owner(), address(this), _amount);
     }
 
     /// @notice Allows a grant recipient to claim their vested tokens. Errors if no tokens have vested
@@ -84,8 +84,8 @@ contract VestingVault is Ownable {
         tokenGrant.monthsClaimed = uint256(tokenGrant.monthsClaimed.add(monthsVested));
         tokenGrant.totalClaimed = uint256(tokenGrant.totalClaimed.add(amountVested));
         
-        token.safeTransfer(tokenGrant.recipient, amountVested);
         emit GrantTokensClaimed(tokenGrant.recipient, amountVested);
+        token.safeTransfer(tokenGrant.recipient, amountVested);
     }
 
     /// @notice Terminate token grant transferring all vested tokens to the `_recipient`
@@ -103,6 +103,10 @@ contract VestingVault is Ownable {
 
         uint256 amountNotVested = (tokenGrant.amount.sub(tokenGrant.totalClaimed)).sub(amountVested);
 
+        delete tokenGrants[_recipient];
+
+        emit GrantRevoked(_recipient, amountVested, amountNotVested);
+
         // only transfer tokens if amounts are non-zero.
         // Negative cases are covered by upperbound check in addTokenGrant and overflow protection using SafeMath
         if (amountNotVested > 0) {
@@ -111,10 +115,6 @@ contract VestingVault is Ownable {
         if (amountVested > 0) {
           token.safeTransfer(_recipient, amountVested);
         }
-
-        delete tokenGrants[_recipient];
-
-        emit GrantRevoked(_recipient, amountVested, amountNotVested);
     }
 
     function getGrantStartTime(address _recipient) public view returns(uint256) {
