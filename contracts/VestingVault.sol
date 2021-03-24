@@ -112,12 +112,7 @@ contract VestingVault is Ownable {
           token.safeTransfer(_recipient, amountVested);
         }
 
-        tokenGrant.startTime = 0;
-        tokenGrant.amount = 0;
-        tokenGrant.vestingDuration = 0;
-        tokenGrant.monthsClaimed = 0;
-        tokenGrant.totalClaimed = 0;
-        tokenGrant.recipient = address(0);
+        delete tokenGrants[_recipient];
 
         emit GrantRevoked(_recipient, amountVested, amountNotVested);
     }
