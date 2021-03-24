@@ -54,7 +54,7 @@ contract VestingVault is Ownable {
         require(tokenGrants[_recipient].amount == 0, "Grant already exists, must revoke first.");
         require(_vestingDurationInMonths <= 25*12, "Duration greater than 25 years");
         require(_lockDurationInMonths <= 10*12, "Lock greater than 10 years");
-
+        require(_amount != 0, "Grant amount cannot be 0");
         uint256 amountVestedPerMonth = _amount.div(_vestingDurationInMonths);
         require(amountVestedPerMonth > 0, "amountVestedPerMonth > 0");
 

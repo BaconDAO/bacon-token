@@ -128,6 +128,13 @@ contract('VestingVault', function ([owner, other]) {
     expect((await this.vault.getGrantAmount(other)).toString()).to.equal("300");
   });
 
+  it('can not add a grant with 0 amount', async function () {
+    await expectRevert(
+      this.vault.addTokenGrant(other, 0, 10, 1),
+      "Grant amount cannot be 0"
+    );
+  });
+
   it('can not claim unvested tokens', async function () {
     await this.vault.addTokenGrant(other, 1000, 10, 1);
     await expectRevert(
