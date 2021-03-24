@@ -31,7 +31,7 @@ contract VestingVault is Ownable {
     event GrantTokensClaimed(address indexed recipient, uint256 amountClaimed);
     event GrantRevoked(address recipient, uint256 amountVested, uint256 amountNotVested);
 
-    IERC20 public token;
+    IERC20 immutable public token;
     
     mapping (address => Grant) private tokenGrants;
 
